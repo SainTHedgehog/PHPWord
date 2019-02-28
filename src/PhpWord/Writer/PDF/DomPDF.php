@@ -46,12 +46,33 @@ class DomPDF extends AbstractRenderer implements WriterInterface
 
         //  PDF settings
         $paperSize = 'A4';
-        $orientation = 'portrait';
+        // $orientation = 'portrait';
+        $orientation = 'landscape';
+
+		// Get HTML content
+		$html = $this->getContent();
+
+		// HOSTCMS::Replace tab to span
+		$html = str_replace('&nbsp;', ' ', $html);
+		$html = str_replace('	', '<span style="padding-left: 45px"> </span>', $html);
 
         //  Create PDF
         $pdf = new DompdfLib();
         $pdf->setPaper(strtolower($paperSize), $orientation);
-        $pdf->loadHtml(str_replace(PHP_EOL, '', $this->getContent()));
+
+		// HOSTCMS
+		$html = str_replace('<meta charset="UTF-8" />', '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />', $html);
+		$html = str_replace('font-family: Cambria;', 'font-family: DejaVu Sans, sans-serif !important;', $html);
+
+        $pdf->loadHtml(str_replace(PHP_EOL, '', $html), "UTF-8");
+
+		$options = $pdf->getOptions();
+
+		$options->set(array('defaultFont' => 'dejavu sans'));
+		$pdf->setOptions($options);
+
+		$options = $pdf->getOptions();
+
         $pdf->render();
 
         //  Write to file

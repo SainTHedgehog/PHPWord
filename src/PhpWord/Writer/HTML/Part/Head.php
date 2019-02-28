@@ -24,6 +24,8 @@ use PhpOffice\PhpWord\Style\Paragraph;
 use PhpOffice\PhpWord\Writer\HTML\Style\Font as FontStyleWriter;
 use PhpOffice\PhpWord\Writer\HTML\Style\Generic as GenericStyleWriter;
 use PhpOffice\PhpWord\Writer\HTML\Style\Paragraph as ParagraphStyleWriter;
+// ADDED HOSTCMS
+use PhpOffice\PhpWord\Writer\HTML\Style\Table as TableStyleWriter;
 
 /**
  * RTF head part writer
@@ -98,14 +100,15 @@ class Head extends AbstractPart
                 'border'     => '0',
                 'border-top' => '1px solid #CCC',
             ),
-            'table' => array(
+			// HostCMS
+            /*'table' => array(
                 'border'         => '1px solid black',
                 'border-spacing' => '0px',
                 'width '         => '100%',
             ),
-            'td' => array(
+			'td' => array(
                 'border' => '1px solid black',
-            ),
+            ),*/
         );
         foreach ($defaultStyles as $selector => $style) {
             $styleWriter = new GenericStyleWriter($style);
@@ -128,6 +131,11 @@ class Head extends AbstractPart
                     $styleWriter = new ParagraphStyleWriter($style);
                     $name = '.' . $name;
                     $css .= "{$name} {" . $styleWriter->write() . '}' . PHP_EOL;
+                } elseif ($style instanceof Table) {
+                    $styleWriter = new TableStyleWriter($style);
+                    $name = '.' . $name;
+                    $css .= "{$name} {" . $styleWriter->write() . '}' . PHP_EOL;
+                    $css .= "{$name} td {" . $styleWriter->writeTdStyle() . '}' . PHP_EOL;
                 }
             }
         }

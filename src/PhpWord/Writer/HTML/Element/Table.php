@@ -17,6 +17,11 @@
 
 namespace PhpOffice\PhpWord\Writer\HTML\Element;
 
+use PhpOffice\PhpWord\Writer\HTML\Style\Table as TableStyleWriter;
+use PhpOffice\PhpWord\Writer\HTML\Style\Cell as CellStyleWriter;
+use PhpOffice\PhpWord\Writer\HTML\Style\Paragraph as ParagraphStyleWriter;
+
+
 /**
  * Table element HTML writer
  *
@@ -39,18 +44,43 @@ class Table extends AbstractElement
         $rows = $this->element->getRows();
         $rowCount = count($rows);
         if ($rowCount > 0) {
-            $content .= '<table' . self::getTableStyle($this->element->getStyle()) . '>' . PHP_EOL;
+			$tableStyle = self::getTableStyle($this->element->getStyle());
+
+			$content .= '<table cellpadding="0" cellspacing="0"';
+
+			if (is_object($tableStyle))
+			{
+				$styleWriter = new TableStyleWriter($tableStyle);
+
+				$content .= ' style="' . $styleWriter->write() . '"';
+			}
+			else
+			{
+				$content .= ' class="' . htmlspecialchars($tableStyle) . '"';
+			}
+
+			$content .= '>' . PHP_EOL;
+
 
             for ($i = 0; $i < $rowCount; $i++) {
                 /** @var $row \PhpOffice\PhpWord\Element\Row Type hint */
                 $rowStyle = $rows[$i]->getStyle();
-                // $height = $row->getHeight();
+
+				$height = $rows[$i]->getHeight();
+
                 $tblHeader = $rowStyle->isTblHeader();
-                $content .= '<tr>' . PHP_EOL;
+
+				$sTrStyle = '';
+
+				$height && $sTrStyle .= 'height: ' . intval($height * 0.2 / 3) . 'px';
+
+                $content .= '<tr style="' . $sTrStyle . '">' . PHP_EOL;
+
                 $rowCells = $rows[$i]->getCells();
                 $rowCellCount = count($rowCells);
                 for ($j = 0; $j < $rowCellCount; $j++) {
                     $cellStyle = $rowCells[$j]->getStyle();
+					$width = $rowCells[$j]->getWidth();
                     $cellColSpan = $cellStyle->getGridSpan();
                     $cellRowSpan = 1;
                     $cellVMerge = $cellStyle->getVMerge();
@@ -59,7 +89,8 @@ class Table extends AbstractElement
                         for ($k = $i + 1; $k < $rowCount; $k++) {
                             $kRowCells = $rows[$k]->getCells();
                             if (isset($kRowCells[$j])) {
-                                if ($kRowCells[$j]->getStyle()->getVMerge() === 'continue') {
+								$kVMerge = $kRowCells[$j]->getStyle()->getVMerge();
+                                if ($kVMerge === 'continue' || $kVMerge === '') {
                                     $cellRowSpan++;
                                 } else {
                                     break;
@@ -70,13 +101,34 @@ class Table extends AbstractElement
                         }
                     }
                     // Ignore cells that are merged vertically with previous rows
-                    if ($cellVMerge !== 'continue') {
+                    if ($cellVMerge !== 'continue'
+						// HOSTCMS
+						&& $cellVMerge !== ''
+					) {
                         $cellTag = $tblHeader ? 'th' : 'td';
                         $cellColSpanAttr = (is_numeric($cellColSpan) && ($cellColSpan > 1) ? " colspan=\"{$cellColSpan}\"" : '');
                         $cellRowSpanAttr = ($cellRowSpan > 1 ? " rowspan=\"{$cellRowSpan}\"" : '');
-                        $content .= "<{$cellTag}{$cellColSpanAttr}{$cellRowSpanAttr}>" . PHP_EOL;
+
+                        $sTdStyle = '';
+
+						$width && $sTdStyle .= 'width: ' . intval($width * 0.2 / 3) . 'px; ';
+
+						$styleWriter = new CellStyleWriter($cellStyle);
+
+						$x =  $rowCells[$j]->getElement(0);
+						if ($x)
+						{
+							$paragraphStyle = $x->getParagraphStyle();
+							$ParagraphStyleWriter = new ParagraphStyleWriter($paragraphStyle);
+							$sTdStyle .= $ParagraphStyleWriter->write();
+						}
+
+						$sTdStyle .= $styleWriter->write();
+
+                        $content .= "<{$cellTag}{$cellColSpanAttr}{$cellRowSpanAttr} style=\"" . $sTdStyle . "\">" . PHP_EOL;
+
                         $writer = new Container($this->parentWriter, $rowCells[$j]);
-                        $content .= $writer->write();
+                        $insideContent = $writer->write();
                         if ($cellRowSpan > 1) {
                             // There shouldn't be any content in the subsequent merged cells, but lets check anyway
                             for ($k = $i + 1; $k < $rowCount; $k++) {
@@ -84,7 +136,7 @@ class Table extends AbstractElement
                                 if (isset($kRowCells[$j])) {
                                     if ($kRowCells[$j]->getStyle()->getVMerge() === 'continue') {
                                         $writer = new Container($this->parentWriter, $kRowCells[$j]);
-                                        $content .= $writer->write();
+                                        $insideContent .= $writer->write();
                                     } else {
                                         break;
                                     }
@@ -93,6 +145,12 @@ class Table extends AbstractElement
                                 }
                             }
                         }
+
+						// Default content for empty cell without defined height
+						$content .= $insideContent != '' || $height
+							? $insideContent
+							: '<br />';
+
                         $content .= "</{$cellTag}>" . PHP_EOL;
                     }
                 }

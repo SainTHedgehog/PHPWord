@@ -18,6 +18,7 @@
 namespace PhpOffice\PhpWord\Writer\HTML\Style;
 
 use PhpOffice\PhpWord\Style\Font as FontStyle;
+use PhpOffice\PhpWord\Writer\HTML\Style\Paragraph as ParagraphStyle;
 
 /**
  * Font style HTML writer
@@ -65,6 +66,16 @@ class Font extends AbstractStyle
         $spacing = $style->getSpacing();
         $css['letter-spacing'] = $this->getValueIf(!is_null($spacing), ($spacing / 20) . 'pt');
 
-        return $this->assembleCss($css);
+		/// HOSTCMS
+		$paragraph = $style->getParagraph();
+
+		if ($paragraph)
+		{
+			$css['text-align'] = $this->getValueIf(strlen($paragraph->getAlignment()), $paragraph->getAlignment(), 'left');
+		}
+
+		$return = $this->assembleCss($css);
+
+		return $return;
     }
 }

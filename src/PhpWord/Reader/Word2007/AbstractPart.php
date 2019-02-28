@@ -43,6 +43,7 @@ abstract class AbstractPart
     const READ_TRUE = 'attributeTrue';              // Read `true` when element exists
     const READ_FALSE = 'attributeFalse';            // Read `false` when element exists
     const READ_SIZE = 'attributeMultiplyByTwo';     // Read special attribute value for Font::$size
+    const READ_AS_EMPTY = 'attributeEmpty';         // like empty vMerge tag	
 
     /**
      * Document file
@@ -165,7 +166,7 @@ abstract class AbstractPart
             // Text and TextRun
             $textRunContainers = $xmlReader->countElements('w:r|w:ins|w:del|w:hyperlink|w:smartTag', $domNode);
             if (0 === $textRunContainers) {
-                $parent->addTextBreak(null, $paragraphStyle);
+                // $parent->addTextBreak(null, $paragraphStyle);
             } else {
                 $nodes = $xmlReader->getElements('*', $domNode);
                 $paragraph = $parent->addTextRun($paragraphStyle);
@@ -297,9 +298,9 @@ abstract class AbstractPart
                 $target = $this->getMediaTarget($docPart, $rId);
                 if (!is_null($target)) {
                     $parent->addLink($target, $textContent, $fontStyle, $paragraphStyle);
-                } else {
+                } /*else {
                     $parent->addText($textContent, $fontStyle, $paragraphStyle);
-                }
+                }*/
             } else {
                 /** @var AbstractElement $element */
                 $element = $parent->addText($textContent, $fontStyle, $paragraphStyle);
@@ -483,7 +484,6 @@ abstract class AbstractPart
                     $styleDefs["border{$ucfSide}Style"] = array(self::READ_VALUE, "w:tblBorders/w:$side", 'w:val');
                 }
                 $styleDefs['layout'] = array(self::READ_VALUE, 'w:tblLayout', 'w:type');
-                $styleDefs['bidiVisual'] = array(self::READ_TRUE, 'w:bidiVisual');
                 $styleDefs['cellSpacing'] = array(self::READ_VALUE, 'w:tblCellSpacing', 'w:w');
                 $style = $this->readStyleDefs($xmlReader, $styleNode, $styleDefs);
 
@@ -554,13 +554,23 @@ abstract class AbstractPart
      */
     private function readCellStyle(XMLReader $xmlReader, \DOMElement $domNode)
     {
+		$margins = array('top', 'left', 'bottom', 'right');
+        $borders = array_merge($margins, array('insideH', 'insideV'));
+				
         $styleDefs = array(
             'valign'        => array(self::READ_VALUE, 'w:vAlign'),
             'textDirection' => array(self::READ_VALUE, 'w:textDirection'),
             'gridSpan'      => array(self::READ_VALUE, 'w:gridSpan'),
-            'vMerge'        => array(self::READ_VALUE, 'w:vMerge'),
+            'vMerge'        => array(self::READ_AS_EMPTY, 'w:vMerge'),
             'bgColor'       => array(self::READ_VALUE, 'w:shd', 'w:fill'),
         );
+		
+		foreach ($borders as $side) {
+			$ucfSide = ucfirst($side);
+			$styleDefs["border{$ucfSide}Size"] = array(self::READ_VALUE, "w:tcBorders/w:$side", 'w:sz');
+			$styleDefs["border{$ucfSide}Color"] = array(self::READ_VALUE, "w:tcBorders/w:$side", 'w:color');
+			$styleDefs["border{$ucfSide}Style"] = array(self::READ_VALUE, "w:tcBorders/w:$side", 'w:val');
+		}		
 
         return $this->readStyleDefs($xmlReader, $domNode, $styleDefs);
     }
@@ -674,6 +684,12 @@ abstract class AbstractPart
             $style = !$this->isOn($attributeValue);
         } elseif (self::READ_EQUAL == $method) {
             $style = $attributeValue == $expected;
+        }
+		// hostCMS
+		elseif (self::READ_AS_EMPTY == $method) {
+            $style = is_null($style)
+				? ''
+				: $style;
         }
 
         return $style;

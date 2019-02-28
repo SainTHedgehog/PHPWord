@@ -19,6 +19,12 @@ namespace PhpOffice\PhpWord\Writer\HTML\Element;
 
 use PhpOffice\PhpWord\Settings;
 
+use PhpOffice\PhpWord\Element\TrackChange;
+use PhpOffice\PhpWord\Style\Font;
+use PhpOffice\PhpWord\Style\Paragraph;
+use PhpOffice\PhpWord\Writer\HTML\Style\Font as FontStyleWriter;
+use PhpOffice\PhpWord\Writer\HTML\Style\Paragraph as ParagraphStyleWriter;
+
 /**
  * TextRun element HTML writer
  *
@@ -49,8 +55,47 @@ class Title extends AbstractElement
             $text = $writer->write();
         }
 
-        $content = "<{$tag}>{$text}</{$tag}>" . PHP_EOL;
+		// HOSTCMS
+		$class = $this->element->getStyle();
+
+		$style = '';
+		if (method_exists($this->element, 'getParagraphStyle')) {
+			$style = $this->getParagraphStyle();
+		}
+
+        $content = "<{$tag}{$style} class=\"{$class}\">{$text}</{$tag}>" . PHP_EOL;
 
         return $content;
     }
+	
+    /**
+     * Write paragraph style
+     *
+     * @return string
+     */
+    private function getParagraphStyle()
+    {
+		
+        /** @var \PhpOffice\PhpWord\Element\Text $element Type hint */
+        $element = $this->element;
+        $style = '';
+        if (!method_exists($element, 'getParagraphStyle')) {
+            return $style;
+        }
+
+        $paragraphStyle = $element->getParagraphStyle();
+        $pStyleIsObject = ($paragraphStyle instanceof Paragraph);
+        if ($pStyleIsObject) {
+            $styleWriter = new ParagraphStyleWriter($paragraphStyle);
+            $style = $styleWriter->write();
+        } elseif (is_string($paragraphStyle)) {
+            $style = $paragraphStyle;
+        }
+        if ($style) {
+            $attribute = $pStyleIsObject ? 'style' : 'class';
+            $style = " {$attribute}=\"{$style}\"";
+        }
+
+        return $style;
+    }	
 }
